@@ -1,0 +1,103 @@
+services:
+  mysql:
+    image: mysql:8.0
+    hostname: mysql
+    container_name: slurm_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_USER: slurm
+      MYSQL_PASSWORD: password
+      MYSQL_DATABASE: slurm_acct_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - slurm_network
+
+  slurm-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile.slurm
+    hostname: slurmctld
+    container_name: slurm_controller
+    depends_on:
+      - mysql
+    environment:
+      - SLURM_CONF_DIR=/etc/slurm
+      - SLURM_NODE_TYPE=controller
+    volumes:
+      - slurm_config:/etc/slurm
+      - slurm_logs:/var/log/slurm
+      - slurm_state:/var/spool/slurm
+    ports:
+      - "6817:6817"  # slurmctld port
+      - "2222:22"    # SSH for MCP access
+    networks:
+      - slurm_network
+    command: /start-controller.sh
+
+  slurm-node1:
+    build:
+      context: .
+      dockerfile: Dockerfile.slurm
+    hostname: node1
+    container_name: slurm_node1
+    depends_on:
+      - slurm-controller
+    environment:
+      - SLURM_CONF_DIR=/etc/slurm
+      - SLURM_NODE_TYPE=compute
+      - SLURM_NODE_NAME=node1
+    volumes:
+      - slurm_config:/etc/slurm
+      - slurm_logs:/var/log/slurm
+    networks:
+      - slurm_network
+    command: /start-node.sh
+
+  slurm-node2:
+    build:
+      context: .
+      dockerfile: Dockerfile.slurm
+    hostname: node2
+    container_name: slurm_node2
+    depends_on:
+      - slurm-controller
+    environment:
+      - SLURM_CONF_DIR=/etc/slurm
+      - SLURM_NODE_TYPE=compute
+      - SLURM_NODE_NAME=node2
+    volumes:
+      - slurm_config:/etc/slurm
+      - slurm_logs:/var/log/slurm
+    networks:
+      - slurm_network
+    command: /start-node.sh
+
+  slurm-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile.slurm
+    hostname: node3
+    container_name: slurm_node3
+    depends_on:
+      - slurm-controller
+    environment:
+      - SLURM_CONF_DIR=/etc/slurm
+      - SLURM_NODE_TYPE=compute
+      - SLURM_NODE_NAME=node3
+    volumes:
+      - slurm_config:/etc/slurm
+      - slurm_logs:/var/log/slurm
+    networks:
+      - slurm_network
+    command: /start-node.sh
+
+volumes:
+  mysql_data:
+  slurm_config:
+  slurm_logs:
+  slurm_state:
+
+networks:
+  slurm_network:
+    driver: bridge
